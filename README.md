@@ -1,4 +1,3 @@
-
 # Linux-File-IO-Systems-locking
 Ex07-Linux File-IO Systems-locking
 # AIM:
@@ -22,25 +21,58 @@ Execute the C Program for the desired output.
 
 ## 1.To Write a C program that illustrates files copying 
 
+
 ```
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
-int main()
-{
-char block[1024];
-int in, out;
-int nread;
-in = open("filecopy.c", O_RDONLY);
-out = open("file.out", O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
-while((nread = read(in,block,sizeof(block))) > 0)
-write(out,block,nread);
-exit(0);}
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <source_file> <destination_file>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char block[1024];
+    int in, out;
+    ssize_t nread;
+
+    in = open(argv[1], O_RDONLY);
+    if (in == -1) {
+        perror("Error opening source file");
+        exit(EXIT_FAILURE);
+    }
+
+    out = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (out == -1) {
+        perror("Error opening destination file");
+        close(in);
+        exit(EXIT_FAILURE);
+    }
+
+    while ((nread = read(in, block, sizeof(block))) > 0) {
+        if (write(out, block, nread) != nread) {
+            perror("Error writing to destination file");
+            close(in);
+            close(out);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (nread == -1) {
+        perror("Error reading source file");
+    }
+
+    close(in);
+    close(out);
+    return EXIT_SUCCESS;
+}
 ```
+## OUTPUT
 
-
-
+<img width="533" height="313" alt="Screenshot 2025-11-06 134804" src="https://github.com/user-attachments/assets/5e5e4f88-df32-40fe-b30b-97005a9be2f8" />
 
 
 ## 2.To Write a C program that illustrates files locking
@@ -48,49 +80,81 @@ exit(0);}
 ```
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/file.h>
-int main (int argc, char* argv[])
-{ char* file = argv[1];
- int fd;
- struct flock lock;
- printf ("opening %s\n", file);
- /* Open a file descriptor to the file. */
- fd = open (file, O_WRONLY);
-// acquire shared lock
-if (flock(fd, LOCK_SH) == -1) {
-    printf("error");
-}else
-{printf("Acquiring shared lock using flock");
+
+void display_lslocks() {
+    printf("\nCurrent `lslocks` output:\n");
+    fflush(stdout);
+    system("lslocks");
 }
-getchar();
-// non-atomically upgrade to exclusive lock
-// do it in non-blocking mode, i.e. fail if can't upgrade immediately
-if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
-    printf("error");
-}else
-{printf("Acquiring exclusive lock using flock");}
-getchar();
-// release lock
-// lock is also released automatically when close() is called or process exits
-if (flock(fd, LOCK_UN) == -1) {
-    printf("error");
-}else{
-printf("unlocking");
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char *file = argv[1];
+    int fd;
+
+    printf("Opening %s\n", file);
+
+    fd = open(file, O_WRONLY);
+    if (fd == -1) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Acquire shared lock
+    if (flock(fd, LOCK_SH) == -1) {
+        perror("Error acquiring shared lock");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Acquired shared lock using flock\n");
+    display_lslocks();
+
+    sleep(1); // Simulate waiting before upgrading
+
+    // Try to upgrade to exclusive lock (non-blocking)
+    if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
+        perror("Error upgrading to exclusive lock");
+        flock(fd, LOCK_UN); // Release shared lock if upgrade fails
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Acquired exclusive lock using flock\n");
+    display_lslocks();
+
+    sleep(1); // Simulate waiting before unlocking
+
+    // Release lock
+    if (flock(fd, LOCK_UN) == -1) {
+        perror("Error unlocking");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Unlocked\n");
+    display_lslocks();
+
+    close(fd);
+    return 0;
 }
-getchar();
-close (fd);
-return 0;
+
 ```
 
 
 ## OUTPUT
 
+<img width="1651" height="994" alt="Screenshot 2025-11-06 135217" src="https://github.com/user-attachments/assets/0c42d383-b477-42c2-8943-17a8c4ab5c9c" />
 
-<img width="1014" height="661" alt="Screenshot 2025-10-18 144237" src="https://github.com/user-attachments/assets/eed78986-f4ec-4de6-bd5c-9b879a42c08b" />
+<img width="1229" height="458" alt="Screenshot 2025-11-06 135239" src="https://github.com/user-attachments/assets/c965c126-eeb0-4f66-9c1b-c699fe1a3c2e" />
 
-<img width="571" height="842" alt="Screenshot 2025-10-18 144320" src="https://github.com/user-attachments/assets/4e0555ad-2aa5-42f4-a8a1-3b45afac846a" />
+
+
+
 
 # RESULT:
 The programs are executed successfully.
